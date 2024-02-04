@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import Board from './Board';
 import Ship from './Ship';
+import Scoreboard from './Scoreboard';
+
 
 const BOARD_SIZE = 10;
 const SHIP_LENGTH = 3;
@@ -44,6 +46,16 @@ function Game() {
   const [board, setBoard] = useState(generateEmptyBoard());
   const [isGameOver, setIsGameOver] = useState(false);
   const [message, setMessage] = useState('');
+  const [player1, setPlayer1] = useState({
+    hits: 0,
+    misses: 0,
+    remainingShips: NUM_SHIPS,
+  });
+  const [player2, setPlayer2] = useState({
+    hits: 0,
+    misses: 0,
+    remainingShips: NUM_SHIPS,
+  });
 
   useEffect(() => {
     const newBoard = [...board];
@@ -88,6 +100,8 @@ function Game() {
   return (
     <div className="game">
       <h1>Battleships Game</h1>
+      <Scoreboard player1={player1} player2={player2} />
+
       <div className="message">{message}</div>
       <Board board={board} handleCellClick={handleCellClick} disabled={isGameOver} />
       <div className="ship-container">
