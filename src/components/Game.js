@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import Board from './Board';
 import Ship from './Ship';
 import Scoreboard from './Scoreboard';
+import TurnIndicator from './TurnIndicator';
+
 
 
 const BOARD_SIZE = 10;
@@ -56,6 +58,8 @@ function Game() {
     misses: 0,
     remainingShips: NUM_SHIPS,
   });
+  const [currentPlayer, setCurrentPlayer] = useState(1);
+
 
   useEffect(() => {
     const newBoard = [...board];
@@ -101,6 +105,8 @@ function Game() {
     <div className="game">
       <h1>Battleships Game</h1>
       <Scoreboard player1={player1} player2={player2} />
+      <TurnIndicator currentPlayer={currentPlayer} />
+
 
       <div className="message">{message}</div>
       <Board board={board} handleCellClick={handleCellClick} disabled={isGameOver} />
