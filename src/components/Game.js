@@ -4,6 +4,9 @@ import Board from './Board';
 import Ship from './Ship';
 import Scoreboard from './Scoreboard';
 import TurnIndicator from './TurnIndicator';
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import ShipDrag from './ShipDrag';
 
 
 
@@ -102,6 +105,8 @@ function Game() {
   };
 
   return (
+    <DndProvider backend={HTML5Backend}>
+
     <div className="game">
       <h1>Battleships Game</h1>
       <Scoreboard player1={player1} player2={player2} />
@@ -111,12 +116,14 @@ function Game() {
       <div className="message">{message}</div>
       <Board board={board} handleCellClick={handleCellClick} disabled={isGameOver} />
       <div className="ship-container">
-        <Ship length={SHIP_LENGTH} />
+      <ShipDrag length={SHIP_LENGTH} />
       </div>
       <button className="reset-button" onClick={resetGame}>
         Reset Game
       </button>
     </div>
+    </DndProvider>
+
   );
 }
 
