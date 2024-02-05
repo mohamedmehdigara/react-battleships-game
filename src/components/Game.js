@@ -15,6 +15,8 @@ import {
 import ShipDrag from './ShipDrag';
 import Scoreboard from './Scoreboard';
 import Board from './Board';
+import SettingsPanel from './SettingsPanel';
+
 
 const BOARD_SIZE = 10;
 const SHIP_LENGTH = 3;
@@ -210,15 +212,21 @@ function Game() {
       }
     }
   };
+
+  const handleApplySettings = (settings) => {
+    // Handle the application of new settings here
+    // For simplicity, you can just log them for now
+    console.log('Applied settings:', settings);
+  };
   
   
   
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div>
       <DndProvider backend={HTML5Backend}>
       <div>
         <h1>Battleships Game</h1>
+        <SettingsPanel onApplySettings={handleApplySettings} />
+
         <TurnIndicator currentPlayer={currentPlayer} />
         <ScoreboardContainer>
           <PlayerScore>
@@ -247,8 +255,7 @@ function Game() {
         <ResetButton onClick={resetGame}>Reset Game</ResetButton>
       </div>
     </DndProvider>
-      </div>
-    </DndProvider>
+    
   );
 }
 
