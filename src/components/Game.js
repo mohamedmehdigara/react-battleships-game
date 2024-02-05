@@ -44,6 +44,12 @@ function Game() {
     remainingShips: NUM_SHIPS,
   });
   const [currentPlayer, setCurrentPlayer] = useState(1);
+  const [currentPlayerStats, setCurrentPlayerStats] = useState({
+    hits: 0,
+    misses: 0,
+    remainingShips: NUM_SHIPS,
+  });
+  
 
   useEffect(() => {
     const newBoard = [...board];
@@ -138,6 +144,74 @@ function Game() {
       setMessage('New game started. Your turn!');
     }, 1000);
   };
+
+  const getComputerMove = () => {
+    // Generate random row and column indices
+    const rowIndex = Math.floor(Math.random() * BOARD_SIZE);
+    const colIndex = Math.floor(Math.random() * BOARD_SIZE);
+  
+    // Ensure the generated move hasn't been played before
+    const isMoveValid = !board[rowIndex][colIndex].isHit;
+  
+    // If the move is not valid, generate a new one
+    if (!isMoveValid) {
+      return getComputerMove();
+    }
+  
+    // Return the valid move
+    return { rowIndex, colIndex };
+  };
+  
+
+  
+  const placeShipsRandomly = (board) => {
+    const shipLength = SHIP_LENGTH;
+  
+    // Function to check if a ship can be placed at a specific position
+    const canPlaceShip = (row, col, direction) => {
+      for (let i = 0; i < shipLength; i++) {
+        if (direction === 'horizontal') {
+          if (col + i >= BOARD_SIZE || board[row][col + i].isShip) {
+            return false; // Ship would go out of bounds or overlap with another ship
+          }
+        } else {
+          if (row + i >= BOARD_SIZE || board[row + i][col].isShip) {
+            return false; // Ship would go out of bounds or overlap with another ship
+          }
+        }
+      }
+      return true;
+    };
+  
+    // Function to place a ship at a specific position
+    const placeShip = (row, col, direction) => {
+      for (let i = 0; i < shipLength; i++) {
+        if (direction === 'horizontal') {
+          board[row][col + i].isShip = true;
+        } else {
+          board[row + i][col].isShip = true;
+        }
+      }
+    };
+  
+    // Place ships randomly on the board
+    for (let shipNumber = 1; shipNumber <= NUM_SHIPS; shipNumber++) {
+      let placed = false;
+  
+      while (!placed) {
+        const row = Math.floor(Math.random() * BOARD_SIZE);
+        const col = Math.floor(Math.random() * BOARD_SIZE);
+        const direction = Math.random() < 0.5 ? 'horizontal' : 'vertical';
+  
+        if (canPlaceShip(row, col, direction)) {
+          placeShip(row, col, direction);
+          placed = true;
+        }
+      }
+    }
+  };
+  
+  
   
   return (
     <DndProvider backend={HTML5Backend}>
