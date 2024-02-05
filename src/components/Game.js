@@ -51,16 +51,94 @@ function Game() {
   }, []);
 
   const handleCellClick = (rowIndex, colIndex) => {
-    // ... (your existing handleCellClick logic)
-
+    if (isGameOver || board[rowIndex][colIndex].isHit) return;
+  
+    const cell = board[rowIndex][colIndex];
+    const newBoard = [...board];
+  
+    if (cell.isShip) {
+      // It's a hit!
+      newBoard[rowIndex][colIndex].isHit = true;
+      setMessage('Hit!');
+  
+      const isAllShipsSunk = newBoard
+        .flat()
+        .filter(cell => cell.isShip)
+        .every(shipCell => shipCell.isHit);
+  
+      if (isAllShipsSunk) {
+        setMessage('Congratulations! You sank all ships.');
+        setIsGameOver(true);
+      }
+  
+      // Update player stats
+      setCurrentPlayerStats(currentPlayerStats => ({
+        ...currentPlayerStats,
+        hits: currentPlayerStats.hits + 1,
+      }));
+    } else {
+      // It's a miss
+      newBoard[rowIndex][colIndex].isHit = true;
+      setMessage('Miss!');
+  
+      // Update player stats
+      setCurrentPlayerStats(currentPlayerStats => ({
+        ...currentPlayerStats,
+        misses: currentPlayerStats.misses + 1,
+      }));
+    }
+  
     // Switch turns
     setCurrentPlayer(currentPlayer === 1 ? 2 : 1);
+  
+    // Simulate computer player's move (if it's computer's turn)
+    if (currentPlayer === 2 && !isGameOver) {
+      setTimeout(() => {
+        // Implement computer player's move logic here
+        const computerMove = getComputerMove(); // Replace with your logic
+        handleCellClick(computerMove.rowIndex, computerMove.colIndex);
+      }, 1000); // Add a delay to simulate computer's "thinking" time
+    }
   };
+  
 
   const resetGame = () => {
-    // ... (your existing resetGame logic)
+    // Reset the game board
+    const newBoard = generateEmptyBoard();
+    placeShipsRandomly(newBoard); // Assuming you have a function to place ships
+    setBoard(newBoard);
+  
+    // Reset game-related state
+    setIsGameOver(false);
+    setMessage('');
+  
+    // Reset player stats
+    setPlayer1({
+      hits: 0,
+      misses: 0,
+      remainingShips: NUM_SHIPS,
+    });
+  
+    setPlayer2({
+      hits: 0,
+      misses: 0,
+      remainingShips: NUM_SHIPS,
+    });
+  
+    // Reset current player and stats
+    setCurrentPlayer(1);
+    setCurrentPlayerStats({
+      hits: 0,
+      misses: 0,
+      remainingShips: NUM_SHIPS,
+    });
+  
+    // Optionally, you can add a delay before starting the new game
+    setTimeout(() => {
+      setMessage('New game started. Your turn!');
+    }, 1000);
   };
-
+  
   return (
     <DndProvider backend={HTML5Backend}>
       <div>
