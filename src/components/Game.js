@@ -54,6 +54,8 @@ function Game() {
     remainingShips: NUM_SHIPS,
   });
   const [winner, setWinner] = useState('');
+  const [history, setHistory] = useState([]);
+
 
   
 
@@ -64,53 +66,66 @@ function Game() {
 
   const handleCellClick = (rowIndex, colIndex) => {
     if (isGameOver || board[rowIndex][colIndex].isHit) return;
-  
+
     const cell = board[rowIndex][colIndex];
     const newBoard = [...board];
-  
+    const currentPlayerStats = currentPlayer === 1 ? player1 : player2;
+
+    let newMessage = '';
+
     if (cell.isShip) {
       // It's a hit!
       newBoard[rowIndex][colIndex].isHit = true;
-      setMessage('Hit!');
-  
-      const isAllShipsSunk = newBoard
-        .flat()
-        .filter(cell => cell.isShip)
-        .every(shipCell => shipCell.isHit);
-  
-      if (isAllShipsSunk) {
-        setMessage('Congratulations! You sank all ships.');
-        setIsGameOver(true);
-      }
-  
+      newMessage = 'Hit!';
+
       // Update player stats
-      setCurrentPlayerStats(currentPlayerStats => ({
-        ...currentPlayerStats,
-        hits: currentPlayerStats.hits + 1,
-      }));
+      if (currentPlayer === 1) {
+        setPlayer1((prevState) => ({
+          ...prevState,
+          hits: prevState.hits + 1,
+        }));
+      } else {
+        setPlayer2((prevState) => ({
+          ...prevState,
+          hits: prevState.hits + 1,
+        }));
+      }
     } else {
       // It's a miss
       newBoard[rowIndex][colIndex].isHit = true;
-      setMessage('Miss!');
-  
+      newMessage = 'Miss!';
+
       // Update player stats
-      setCurrentPlayerStats(currentPlayerStats => ({
-        ...currentPlayerStats,
-        misses: currentPlayerStats.misses + 1,
-      }));
+      if (currentPlayer === 1) {
+        setPlayer1((prevState) => ({
+          ...prevState,
+          misses: prevState.misses + 1,
+        }));
+      } else {
+        setPlayer2((prevState) => ({
+          ...prevState,
+          misses: prevState.misses + 1,
+        }));
+      }
     }
-  
+
+    // Add the move to the history log
+    setHistory((prevHistory) => [
+      ...prevHistory,
+      {
+        player: currentPlayer,
+        rowIndex,
+        colIndex,
+        result: cell.isShip ? 'hit' : 'miss',
+      },
+    ]);
+
+    // Check for game over conditions...
+    // Update message, winner, etc.
+
     // Switch turns
-    setCurrentPlayer(currentPlayer === 1 ? 2 : 1);
-  
-    // Simulate computer player's move (if it's computer's turn)
-    if (currentPlayer === 2 && !isGameOver) {
-      setTimeout(() => {
-        // Implement computer player's move logic here
-        const computerMove = getComputerMove(); // Replace with your logic
-        handleCellClick(computerMove.rowIndex, computerMove.colIndex);
-      }, 1000); // Add a delay to simulate computer's "thinking" time
-    }
+    setCurrentPlayer((prevPlayer) => (prevPlayer === 1 ? 2 : 1));
+    setMessage(newMessage);
   };
   
 
@@ -235,6 +250,7 @@ function Game() {
     setBoard(generateEmptyBoard());
     // Reset other game-related state as needed
   };
+
   
   return (
       <DndProvider backend={HTML5Backend}>
