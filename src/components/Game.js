@@ -245,6 +245,8 @@ function Game() {
     <DndProvider backend={HTML5Backend}>
       <div>
         <h1>Battleships Game</h1>
+        <Ship />
+        
         <SettingsPanel onApplySettings={handleApplySettings} />
         {isGameOver && (
           <GameOverModal winner={winner} onNewGame={handleNewGame} />
