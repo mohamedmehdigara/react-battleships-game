@@ -16,6 +16,8 @@ import ShipDrag from './ShipDrag';
 import Scoreboard from './Scoreboard';
 import Board from './Board';
 import SettingsPanel from './SettingsPanel';
+import GameOverModal from './GameOverModal';
+
 
 
 const BOARD_SIZE = 10;
@@ -51,6 +53,8 @@ function Game() {
     misses: 0,
     remainingShips: NUM_SHIPS,
   });
+  const [winner, setWinner] = useState('');
+
   
 
   useEffect(() => {
@@ -219,13 +223,27 @@ function Game() {
     console.log('Applied settings:', settings);
   };
   
-  
+  const handleGameOver = (winner) => {
+    setIsGameOver(true);
+    setWinner(winner);
+  };
+
+  const handleNewGame = () => {
+    // Reset game state here
+    setIsGameOver(false);
+    setWinner('');
+    setBoard(generateEmptyBoard());
+    // Reset other game-related state as needed
+  };
   
   return (
       <DndProvider backend={HTML5Backend}>
       <div>
         <h1>Battleships Game</h1>
         <SettingsPanel onApplySettings={handleApplySettings} />
+        {isGameOver && (
+          <GameOverModal winner={winner} onNewGame={handleNewGame} />
+        )}
 
         <TurnIndicator currentPlayer={currentPlayer} />
         <ScoreboardContainer>
