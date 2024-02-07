@@ -18,11 +18,11 @@ import Board from './Board';
 import SettingsPanel from './SettingsPanel';
 import GameOverModal from './GameOverModal';
 
-
-
+// Constants
 const BOARD_SIZE = 10;
 const SHIP_LENGTH = 3;
 const NUM_SHIPS = 2;
+const TURN_DURATION = 60; // Turn duration in seconds
 
 function generateEmptyBoard() {
   return Array.from({ length: BOARD_SIZE }, () =>
@@ -56,17 +56,23 @@ function Game() {
   const [winner, setWinner] = useState('');
   const [history, setHistory] = useState([]);
   const [turnTime, setTurnTime] = useState(TURN_DURATION);
-
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
-
-
-  
+  useEffect(() => {
+    setBoard(generateEmptyBoard());
+  }, []);
 
   useEffect(() => {
-    const newBoard = [...board];
-    setBoard(newBoard);
-  }, []);
+    if (isTimerRunning && turnTime > 0) {
+      const timer = setInterval(() => {
+        setTurnTime((prevTime) => prevTime - 1);
+      }, 1000);
+
+      return () => clearInterval(timer);
+    } else if (turnTime === 0) {
+      handleTurnTimeout();
+    }
+  }, [isTimerRunning, turnTime]);
 
   const handleCellClick = (rowIndex, colIndex) => {
     if (isGameOver || board[rowIndex][colIndex].isHit) return;
@@ -131,10 +137,8 @@ function Game() {
     setCurrentPlayer((prevPlayer) => (prevPlayer === 1 ? 2 : 1));
     setMessage(newMessage);
   };
-  
 
   const resetGame = () => {
-    // Reset the game state
     setBoard(generateEmptyBoard());
     setIsGameOver(false);
     setWinner('');
@@ -154,52 +158,49 @@ function Game() {
     setTurnTime(TURN_DURATION);
     setIsTimerRunning(false);
   };
- 
-    // Optionally, you can add a delay before starting the new game
+
+  const handleGameOver = (winner) => {
+    setIsGameOver(true);
+    setWinner(winner);
+  };
+
+  const handleNewGame = () => {
+    resetGame();
     setTimeout(() => {
       setMessage('New game started. Your turn!');
     }, 1000);
   };
 
   const getComputerMove = () => {
-    // Generate random row and column indices
     const rowIndex = Math.floor(Math.random() * BOARD_SIZE);
     const colIndex = Math.floor(Math.random() * BOARD_SIZE);
-  
-    // Ensure the generated move hasn't been played before
     const isMoveValid = !board[rowIndex][colIndex].isHit;
-  
-    // If the move is not valid, generate a new one
+
     if (!isMoveValid) {
       return getComputerMove();
     }
-  
-    // Return the valid move
+
     return { rowIndex, colIndex };
   };
-  
 
-  
-  const placeShipsRandomly = (board) => {
+  const placeShipsRandomly = () => {
     const shipLength = SHIP_LENGTH;
-  
-    // Function to check if a ship can be placed at a specific position
+
     const canPlaceShip = (row, col, direction) => {
       for (let i = 0; i < shipLength; i++) {
         if (direction === 'horizontal') {
           if (col + i >= BOARD_SIZE || board[row][col + i].isShip) {
-            return false; // Ship would go out of bounds or overlap with another ship
+            return false;
           }
         } else {
           if (row + i >= BOARD_SIZE || board[row + i][col].isShip) {
-            return false; // Ship would go out of bounds or overlap with another ship
+            return false;
           }
         }
       }
       return true;
     };
-  
-    // Function to place a ship at a specific position
+
     const placeShip = (row, col, direction) => {
       for (let i = 0; i < shipLength; i++) {
         if (direction === 'horizontal') {
@@ -209,16 +210,15 @@ function Game() {
         }
       }
     };
-  
-    // Place ships randomly on the board
+
     for (let shipNumber = 1; shipNumber <= NUM_SHIPS; shipNumber++) {
       let placed = false;
-  
+
       while (!placed) {
         const row = Math.floor(Math.random() * BOARD_SIZE);
         const col = Math.floor(Math.random() * BOARD_SIZE);
         const direction = Math.random() < 0.5 ? 'horizontal' : 'vertical';
-  
+
         if (canPlaceShip(row, col, direction)) {
           placeShip(row, col, direction);
           placed = true;
@@ -228,69 +228,27 @@ function Game() {
   };
 
   const handleApplySettings = (settings) => {
-    // Handle the application of new settings here
-    // For simplicity, you can just log them for now
     console.log('Applied settings:', settings);
   };
-  
-  const handleGameOver = (winner) => {
-    setIsGameOver(true);
-    setWinner(winner);
+
+  const handleTurnTimeout = () => {
+    setIsTimerRunning(false);
+    setMessage("Time's up! Next player's turn.");
+    setCurrentPlayer((prevPlayer) => (prevPlayer === 1 ? 2 : 1));
   };
-
-  const handleNewGame = () => {
-    // Reset game state here
-    setIsGameOver(false);
-    setWinner('');
-    setBoard(generateEmptyBoard());
-    // Reset other game-related state as needed
-  };
-
-  useEffect(() => {
-    if (isTimerRunning && turnTime > 0) {
-      const timer = setInterval(() => {
-        setTurnTime((prevTime) => prevTime - 1);
-      }, 1000);
-
-      return () => clearInterval(timer);
-    } else if (turnTime === 0) {
-      handleTurnTimeout();
-    }
-  }, [isTimerRunning, turnTime]);
 
   const startTurnTimer = () => {
     setIsTimerRunning(true);
   };
 
-  const handleCellClick = (rowIndex, colIndex) => {
-    // Reset turn timer when a cell is clicked
-    setTurnTime(TURN_DURATION);
-
-    // Your existing cell click logic...
-  };
-
-  const handleTurnTimeout = () => {
-    // Handle turn timeout
-    setIsTimerRunning(false);
-    setMessage('Time\'s up! Next player\'s turn.');
-    setCurrentPlayer((prevPlayer) => (prevPlayer === 1 ? 2 : 1));
-  };
-
-
-  
   return (
-      <DndProvider backend={HTML5Backend}>
+    <DndProvider backend={HTML5Backend}>
       <div>
         <h1>Battleships Game</h1>
-        <div>
-          <h2>Turn Timer: {turnTime}</h2>
-        </div>
-      
         <SettingsPanel onApplySettings={handleApplySettings} />
         {isGameOver && (
           <GameOverModal winner={winner} onNewGame={handleNewGame} />
         )}
-
         <TurnIndicator currentPlayer={currentPlayer} />
         <ScoreboardContainer>
           <PlayerScore>
@@ -319,7 +277,6 @@ function Game() {
         <ResetButton onClick={resetGame}>Reset Game</ResetButton>
       </div>
     </DndProvider>
-    
   );
 }
 
