@@ -55,6 +55,10 @@ function Game() {
   });
   const [winner, setWinner] = useState('');
   const [history, setHistory] = useState([]);
+  const [turnTime, setTurnTime] = useState(TURN_DURATION);
+
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+
 
 
   
@@ -130,36 +134,27 @@ function Game() {
   
 
   const resetGame = () => {
-    // Reset the game board
-    const newBoard = generateEmptyBoard();
-    placeShipsRandomly(newBoard); // Assuming you have a function to place ships
-    setBoard(newBoard);
-  
-    // Reset game-related state
+    // Reset the game state
+    setBoard(generateEmptyBoard());
     setIsGameOver(false);
+    setWinner('');
     setMessage('');
-  
-    // Reset player stats
     setPlayer1({
       hits: 0,
       misses: 0,
       remainingShips: NUM_SHIPS,
     });
-  
     setPlayer2({
       hits: 0,
       misses: 0,
       remainingShips: NUM_SHIPS,
     });
-  
-    // Reset current player and stats
     setCurrentPlayer(1);
-    setCurrentPlayerStats({
-      hits: 0,
-      misses: 0,
-      remainingShips: NUM_SHIPS,
-    });
-  
+    setHistory([]);
+    setTurnTime(TURN_DURATION);
+    setIsTimerRunning(false);
+  };
+ 
     // Optionally, you can add a delay before starting the new game
     setTimeout(() => {
       setMessage('New game started. Your turn!');
@@ -251,11 +246,46 @@ function Game() {
     // Reset other game-related state as needed
   };
 
+  useEffect(() => {
+    if (isTimerRunning && turnTime > 0) {
+      const timer = setInterval(() => {
+        setTurnTime((prevTime) => prevTime - 1);
+      }, 1000);
+
+      return () => clearInterval(timer);
+    } else if (turnTime === 0) {
+      handleTurnTimeout();
+    }
+  }, [isTimerRunning, turnTime]);
+
+  const startTurnTimer = () => {
+    setIsTimerRunning(true);
+  };
+
+  const handleCellClick = (rowIndex, colIndex) => {
+    // Reset turn timer when a cell is clicked
+    setTurnTime(TURN_DURATION);
+
+    // Your existing cell click logic...
+  };
+
+  const handleTurnTimeout = () => {
+    // Handle turn timeout
+    setIsTimerRunning(false);
+    setMessage('Time\'s up! Next player\'s turn.');
+    setCurrentPlayer((prevPlayer) => (prevPlayer === 1 ? 2 : 1));
+  };
+
+
   
   return (
       <DndProvider backend={HTML5Backend}>
       <div>
         <h1>Battleships Game</h1>
+        <div>
+          <h2>Turn Timer: {turnTime}</h2>
+        </div>
+      
         <SettingsPanel onApplySettings={handleApplySettings} />
         {isGameOver && (
           <GameOverModal winner={winner} onNewGame={handleNewGame} />
