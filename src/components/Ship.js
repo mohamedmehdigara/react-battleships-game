@@ -1,11 +1,10 @@
-// Ship.js
 import React from 'react';
 import { useDrag } from 'react-dnd';
-import { ItemTypes } from './ItemTypes'; // Import item types
+import { ItemTypes } from './ItemTypes';
 
 const Ship = () => {
   const [{ isDragging }, drag] = useDrag({
-    item: { type: ItemTypes.SHIP }, // Specify the item type
+    item: { type: ItemTypes.SHIP }, // Make sure ItemTypes.SHIP is correctly defined
     collect: (monitor) => ({
       isDragging: !!monitor.isDragging(),
     }),
@@ -19,7 +18,6 @@ const Ship = () => {
         cursor: 'move',
         width: '100px',
         height: '50px',
-        backgroundImage: 'url("path/to/wooden-ship-image.png")',
         backgroundSize: 'cover',
       }}
     />

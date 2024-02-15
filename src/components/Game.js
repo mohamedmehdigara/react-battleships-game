@@ -47,7 +47,7 @@ function Game() {
     misses: 0,
     remainingShips: NUM_SHIPS,
   });
-  const [currentPlayer, setCurrentPlayer] = useState(1);
+  const [currentplayer, setCurrentplayer] = useState(1);
   const [currentPlayerStats, setCurrentPlayerStats] = useState({
     hits: 0,
     misses: 0,
@@ -79,7 +79,7 @@ function Game() {
 
     const cell = board[rowIndex][colIndex];
     const newBoard = [...board];
-    const currentPlayerStats = currentPlayer === 1 ? player1 : player2;
+    const currentPlayerStats = currentplayer === 1 ? player1 : player2;
 
     let newMessage = '';
 
@@ -89,7 +89,7 @@ function Game() {
       newMessage = 'Hit!';
 
       // Update player stats
-      if (currentPlayer === 1) {
+      if (currentplayer === 1) {
         setPlayer1((prevState) => ({
           ...prevState,
           hits: prevState.hits + 1,
@@ -106,7 +106,7 @@ function Game() {
       newMessage = 'Miss!';
 
       // Update player stats
-      if (currentPlayer === 1) {
+      if (currentplayer === 1) {
         setPlayer1((prevState) => ({
           ...prevState,
           misses: prevState.misses + 1,
@@ -123,7 +123,7 @@ function Game() {
     setHistory((prevHistory) => [
       ...prevHistory,
       {
-        player: currentPlayer,
+        player: currentplayer,
         rowIndex,
         colIndex,
         result: cell.isShip ? 'hit' : 'miss',
@@ -134,7 +134,7 @@ function Game() {
     // Update message, winner, etc.
 
     // Switch turns
-    setCurrentPlayer((prevPlayer) => (prevPlayer === 1 ? 2 : 1));
+    setCurrentplayer((prevPlayer) => (prevPlayer === 1 ? 2 : 1));
     setMessage(newMessage);
   };
 
@@ -153,7 +153,7 @@ function Game() {
       misses: 0,
       remainingShips: NUM_SHIPS,
     });
-    setCurrentPlayer(1);
+    setCurrentplayer(1);
     setHistory([]);
     setTurnTime(TURN_DURATION);
     setIsTimerRunning(false);
@@ -234,7 +234,7 @@ function Game() {
   const handleTurnTimeout = () => {
     setIsTimerRunning(false);
     setMessage("Time's up! Next player's turn.");
-    setCurrentPlayer((prevPlayer) => (prevPlayer === 1 ? 2 : 1));
+    setCurrentplayer((prevPlayer) => (prevPlayer === 1 ? 2 : 1));
   };
 
   const startTurnTimer = () => {
@@ -251,7 +251,7 @@ function Game() {
         {isGameOver && (
           <GameOverModal winner={winner} onNewGame={handleNewGame} />
         )}
-        <TurnIndicator currentPlayer={currentPlayer} />
+        <TurnIndicator currentplayer={currentplayer} />
         <ScoreboardContainer>
           <PlayerScore>
             <h2>Player 1</h2>
@@ -271,7 +271,7 @@ function Game() {
           board={board}
           handleCellClick={handleCellClick}
           disabled={isGameOver}
-          currentPlayer={currentPlayer}
+          currentplayer={currentplayer}
         />
         <ShipContainer>
           <ShipDrag length={SHIP_LENGTH} />
