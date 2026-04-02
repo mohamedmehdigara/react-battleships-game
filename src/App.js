@@ -1,206 +1,225 @@
-import React, { Suspense, useRef, useState, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Text, Stars, Sky, Environment, Float } from '@react-three/drei';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import styled, { createGlobalStyle, keyframes } from 'styled-components';
 import { create } from 'zustand';
-import styled, { createGlobalStyle } from 'styled-components';
 
-// --- Game Logic Store ---
-const GRID_SIZE = 10;
-const CELL_SIZE = 1.8;
-const OFFSET = (GRID_SIZE * CELL_SIZE) / 2;
-
-const useGameStore = create((set, get) => ({
-  playerBoard: Array(100).fill(null).map(() => ({ hasShip: false, hit: false, miss: false })),
-  enemyBoard: Array(100).fill(null).map(() => ({ hasShip: false, hit: false, miss: false })),
-  isPlayerTurn: true,
+// --- Game Logic & State ---
+const useGameStore = create((set) => ({
+  score: 0,
+  health: 100,
   gameOver: false,
-  status: "FLEET COMMANDER ONLINE",
-
-  initGame: () => {
-    const generateFleet = () => {
-      let grid = Array(100).fill(null).map(() => ({ hasShip: false, hit: false, miss: false }));
-      const shipSizes = [5, 4, 3, 3, 2];
-      
-      shipSizes.forEach(size => {
-        let placed = false;
-        while (!placed) {
-          const isHorizontal = Math.random() > 0.5;
-          const x = Math.floor(Math.random() * (isHorizontal ? 10 - size : 10));
-          const y = Math.floor(Math.random() * (isHorizontal ? 10 : 10 - size));
-          
-          const indices = [];
-          for (let i = 0; i < size; i++) {
-            indices.push(isHorizontal ? (y * 10 + (x + i)) : ((y + i) * 10 + x));
-          }
-
-          if (indices.every(idx => !grid[idx].hasShip)) {
-            indices.forEach(idx => { grid[idx].hasShip = true; });
-            placed = true;
-          }
-        }
-      });
-      return grid;
-    };
-
-    set({ 
-      playerBoard: generateFleet(), 
-      enemyBoard: generateFleet(), 
-      gameOver: false, 
-      isPlayerTurn: true,
-      status: "ALL SYSTEMS GO" 
-    });
-  },
-
-  fire: (idx) => {
-    const { enemyBoard, isPlayerTurn, gameOver } = get();
-    if (!isPlayerTurn || gameOver || enemyBoard[idx].hit || enemyBoard[idx].miss) return;
-
-    const newBoard = [...enemyBoard];
-    const isHit = newBoard[idx].hasShip;
-    newBoard[idx] = { ...newBoard[idx], hit: isHit, miss: !isHit };
-    
-    set({ enemyBoard: newBoard, isPlayerTurn: false, status: isHit ? "DIRECT HIT!" : "MISS" });
-    get().checkWin(newBoard, "Player");
-    if (!get().gameOver) setTimeout(() => get().aiMove(), 1000);
-  },
-
-  aiMove: () => {
-    const { playerBoard, gameOver } = get();
-    if (gameOver) return;
-    const targets = playerBoard.map((c, i) => (!c.hit && !c.miss ? i : null)).filter(v => v !== null);
-    const target = targets[Math.floor(Math.random() * targets.length)];
-    const newBoard = [...playerBoard];
-    newBoard[target] = { ...newBoard[target], hit: newBoard[target].hasShip, miss: !newBoard[target].hasShip };
-    set({ playerBoard: newBoard, isPlayerTurn: true, status: "INCOMING RADAR CONTACT" });
-    get().checkWin(newBoard, "Enemy");
-  },
-
-  checkWin: (board, user) => {
-    if (board.filter(c => c.hasShip && !c.hit).length === 0) {
-      set({ gameOver: true, status: user === "Player" ? "VICTORY" : "FLEET LOST" });
-    }
-  }
+  highScore: localStorage.getItem('navalkills') || 0,
+  incrementScore: () => set((state) => {
+    const newScore = state.score + 10;
+    if (newScore > state.highScore) localStorage.setItem('navalkills', newScore);
+    return { score: newScore, highScore: Math.max(newScore, state.highScore) };
+  }),
+  takeDamage: (amt) => set((state) => {
+    const newHealth = Math.max(0, state.health - amt);
+    return { health: newHealth, gameOver: newHealth <= 0 };
+  }),
+  resetGame: () => set({ score: 0, health: 100, gameOver: false }),
 }));
 
-// --- 3D Naval Assets ---
+// --- Animations ---
+const waveMove = keyframes`
+  0% { background-position: 0 0; }
+  100% { background-position: 100px 100px; }
+`;
 
-const ShipMesh = ({ color }) => (
-  <group position={[0, 0.4, 0]}>
-    {/* Hull */}
-    <mesh castShadow>
-      <boxGeometry args={[1.4, 0.5, 0.7]} />
-      <meshStandardMaterial color={color} metalness={0.6} roughness={0.3} />
-    </mesh>
-    {/* Cabin */}
-    <mesh position={[0, 0.45, 0]} castShadow>
-      <boxGeometry args={[0.5, 0.4, 0.4]} />
-      <meshStandardMaterial color="#546e7a" />
-    </mesh>
-    {/* Mast */}
-    <mesh position={[0, 0.8, 0]}>
-      <cylinderGeometry args={[0.04, 0.04, 0.6]} />
-      <meshStandardMaterial color="#263238" />
-    </mesh>
-  </group>
-);
+const muzzleFlash = keyframes`
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(2); }
+`;
 
-const Ocean = () => (
-  <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]} receiveShadow>
-    <planeGeometry args={[100, 100]} />
-    <meshStandardMaterial color="#003d5b" metalness={0.9} roughness={0.1} transparent opacity={0.8} />
-  </mesh>
-);
-
-const Board3D = ({ board, isEnemy, onAttack }) => {
-  return (
-    <group position={isEnemy ? [12, 0, 0] : [-12, 0, 0]}>
-      {/* Wooden Board Base */}
-      <mesh position={[0, -0.1, 0]} receiveShadow>
-        <boxGeometry args={[19, 0.4, 19]} />
-        <meshStandardMaterial color="#3e2723" roughness={0.8} />
-      </mesh>
-
-      <Text position={[0, 5, -10]} fontSize={1.5} color={isEnemy ? "#ff1744" : "#00e5ff"}>
-        {isEnemy ? "RADAR (ENEMY)" : "FLEET (PLAYER)"}
-      </Text>
-      
-      {board.map((cell, i) => {
-        const x = (i % 10) * CELL_SIZE - OFFSET + (CELL_SIZE / 2);
-        const z = Math.floor(i / 10) * CELL_SIZE - OFFSET + (CELL_SIZE / 2);
-        
-        return (
-          <group key={i} position={[x, 0, z]}>
-            {/* Cell Slot */}
-            <mesh onClick={() => isEnemy && onAttack(i)}>
-              <boxGeometry args={[1.5, 0.1, 1.5]} />
-              <meshStandardMaterial color={isEnemy ? "#1a237e" : "#0d47a1"} />
-            </mesh>
-
-            {/* Ship Presence */}
-            {((!isEnemy && cell.hasShip) || (isEnemy && cell.hasShip && cell.hit)) && (
-              <ShipMesh color={isEnemy ? "#cfd8dc" : "#90a4ae"} />
-            )}
-
-            {/* Peg Markers (Red for Hit, White for Miss) */}
-            {cell.hit && (
-              <mesh position={[0, 1, 0]}>
-                <sphereGeometry args={[0.3, 16, 16]} />
-                <meshStandardMaterial color="#ff1744" emissive="#ff1744" emissiveIntensity={0.5} />
-              </mesh>
-            )}
-            {cell.miss && (
-              <mesh position={[0, 0.5, 0]}>
-                <sphereGeometry args={[0.2, 8, 8]} />
-                <meshStandardMaterial color="#ffffff" />
-              </mesh>
-            )}
-          </group>
-        );
-      })}
-    </group>
-  );
-};
-
-// --- Main UI Overlay ---
+// --- Styled Components ---
 const GlobalStyle = createGlobalStyle`
-  body { margin: 0; background: #000c14; overflow: hidden; font-family: 'Courier New', monospace; }
+  body { margin: 0; background: #000; color: #fff; font-family: 'Share Tech Mono', monospace; overflow: hidden; }
+`;
+
+const Scene = styled.div`
+  width: 100vw; height: 100vh; perspective: 1000px;
+  background: linear-gradient(to bottom, #02010a 0%, #040c24 100%);
+  display: flex; justify-content: center; align-items: center;
+`;
+
+const Ocean = styled.div`
+  position: absolute; width: 6000px; height: 6000px;
+  background-color: #001d3d;
+  background-image: 
+    linear-gradient(rgba(0, 180, 216, 0.1) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(0, 180, 216, 0.1) 2px, transparent 2px);
+  background-size: 100px 100px;
+  transform: rotateX(70deg) translateZ(-100px);
+  transform-style: preserve-3d;
+  animation: ${waveMove} 10s linear infinite;
+`;
+
+const Entity = styled.div.attrs(props => ({
+  style: { transform: `translate3d(${props.x}px, ${props.y}px, ${props.z || 0}px)` },
+}))`
+  position: absolute; transform-style: preserve-3d;
+`;
+
+const Ship = styled.div`
+  width: 50px; height: 120px; background: #334155;
+  border-radius: 50% 50% 5% 5%;
+  box-shadow: 0 20px 30px rgba(0,0,0,0.6);
+  &::before { // Deck
+    content: ''; position: absolute; top: 30%; left: 10%; width: 80%; height: 40%;
+    background: #1e293b; border-radius: 5px; transform: translateZ(15px);
+  }
+`;
+
+const Enemy = styled(Ship)`
+  background: #7f1d1d; border: 1px solid #ef4444;
+  &::before { background: #450a0a; }
+`;
+
+const Bullet = styled.div`
+  width: 8px; height: 25px; background: #fbbf24;
+  border-radius: 50%; box-shadow: 0 0 15px #fbbf24;
+  transform: translateZ(10px);
 `;
 
 const HUD = styled.div`
-  position: absolute; top: 40px; width: 100%; text-align: center; z-index: 10; pointer-events: none;
+  position: absolute; top: 30px; left: 30px; z-index: 100;
+  pointer-events: none; text-shadow: 0 0 10px #00f2ff;
+  .bar { width: 250px; height: 10px; background: #1e293b; border: 1px solid #00f2ff; margin-top: 10px; }
+  .fill { height: 100%; background: #00f2ff; transition: width 0.3s; width: ${props => props.health}%; }
 `;
 
-const Status = styled.div`
-  background: rgba(0, 0, 0, 0.8); display: inline-block; padding: 15px 50px;
-  border-top: 4px solid #00e5ff; color: #00e5ff; font-size: 1.8rem; font-weight: bold;
+const GameOverScreen = styled.div`
+  position: absolute; inset: 0; background: rgba(0,0,0,0.9);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
+  h1 { font-size: 4rem; color: #ef4444; }
+  button { padding: 15px 40px; background: none; border: 2px solid #00f2ff; color: #00f2ff; cursor: pointer; }
 `;
 
+// --- Main App ---
 export default function App() {
-  const { playerBoard, enemyBoard, status, initGame, fire } = useGameStore();
+  const { score, health, gameOver, incrementScore, takeDamage, resetGame, highScore } = useGameStore();
+  
+  // High-performance state
+  const player = useRef({ x: 0, y: 500, vx: 0, vy: 0 });
+  const bullets = useRef([]);
+  const enemies = useRef([]);
+  const keys = useRef({});
+  const [tick, setTick] = useState(0);
 
-  useEffect(() => { initGame(); }, []);
+  useEffect(() => {
+    const handleKey = (e) => (keys.current[e.code] = e.type === 'keydown');
+    window.addEventListener('keydown', handleKey);
+    window.addEventListener('keyup', handleKey);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('keyup', handleKey);
+    };
+  }, []);
+
+  const gameLoop = useCallback(() => {
+    if (gameOver) return;
+
+    // 1. Momentum Physics
+    const p = player.current;
+    if (keys.current['ArrowLeft']) p.vx -= 0.8;
+    if (keys.current['ArrowRight']) p.vx += 0.8;
+    if (keys.current['ArrowUp']) p.vy -= 0.5;
+    if (keys.current['ArrowDown']) p.vy += 0.5;
+
+    p.vx *= 0.92; // Friction
+    p.vy *= 0.95;
+    p.x += p.vx;
+    p.y += p.vy;
+
+    // Boundaries
+    p.x = Math.max(-400, Math.min(400, p.x));
+
+    // 2. Weapons System
+    if (keys.current['Space'] && tick % 12 === 0) {
+      bullets.current.push({ x: p.x, y: p.y - 60, id: Math.random() });
+    }
+    bullets.current.forEach(b => (b.y -= 18));
+    bullets.current = bullets.current.filter(b => b.y > -1500);
+
+    // 3. Enemy Fleet AI
+    if (Math.random() > 0.96 && enemies.current.length < 8) {
+      enemies.current.push({ 
+        x: Math.random() * 800 - 400, 
+        y: p.y - 1200, 
+        speed: 3 + Math.random() * 4,
+        id: Math.random() 
+      });
+    }
+
+    enemies.current.forEach((en, ei) => {
+      en.y += en.speed;
+
+      // Bullet Collision
+      bullets.current.forEach((b, bi) => {
+        if (Math.abs(b.x - en.x) < 35 && Math.abs(b.y - en.y) < 60) {
+          enemies.current.splice(ei, 1);
+          bullets.current.splice(bi, 1);
+          incrementScore();
+        }
+      });
+
+      // Player Collision
+      if (Math.abs(en.x - p.x) < 45 && Math.abs(en.y - p.y) < 70) {
+        enemies.current.splice(ei, 1);
+        takeDamage(25);
+      }
+    });
+
+    enemies.current = enemies.current.filter(en => en.y < p.y + 500);
+
+    setTick(t => t + 1);
+    requestAnimationFrame(gameLoop);
+  }, [gameOver, incrementScore, takeDamage, tick]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(gameLoop);
+    return () => cancelAnimationFrame(frame);
+  }, [gameLoop]);
 
   return (
-    <>
+    <Scene>
       <GlobalStyle />
-      <HUD><Status>{status}</Status></HUD>
+      <HUD health={health}>
+        <h2>OPERATIONAL STATUS: NORM</h2>
+        <div className="bar"><div className="fill" /></div>
+        <p>CONFIRMED KILLS: {score} | RECORD: {highScore}</p>
+      </HUD>
 
-      <Canvas shadows camera={{ position: [0, 35, 40], fov: 35 }}>
-        <Sky sunPosition={[100, 20, 100]} />
-        <Stars radius={100} depth={50} count={3000} factor={4} saturation={0} fade />
+      {gameOver && (
+        <GameOverScreen>
+          <h1>FLEET DESTROYED</h1>
+          <button onClick={() => { resetGame(); window.location.reload(); }}>RE-INITIALIZE SYSTEMS</button>
+        </GameOverScreen>
+      )}
+
+      {/* The 3D World */}
+      <Ocean style={{ transform: `rotateX(70deg) translateY(${-player.current.y}px) translateX(${-player.current.x * 0.1}px)` }}>
         
-        <ambientLight intensity={1.2} /> 
-        <directionalLight position={[20, 40, 20]} intensity={2.5} castShadow />
+        {/* Player */}
+        <Entity x={player.current.x} y={player.current.y}>
+          <Ship />
+        </Entity>
 
-        <Suspense fallback={null}>
-          <Ocean />
-          <Board3D board={playerBoard} isEnemy={false} />
-          <Board3D board={enemyBoard} isEnemy={true} onAttack={fire} />
-          <Environment preset="city" />
-        </Suspense>
+        {/* Fleet Bullets */}
+        {bullets.current.map(b => (
+          <Entity key={b.id} x={b.x} y={b.y} z={15}>
+            <Bullet />
+          </Entity>
+        ))}
 
-        <OrbitControls maxPolarAngle={Math.PI / 2.3} minDistance={20} maxDistance={60} />
-      </Canvas>
-    </>
+        {/* Enemy Raiders */}
+        {enemies.current.map(en => (
+          <Entity key={en.id} x={en.x} y={en.y}>
+            <Enemy />
+          </Entity>
+        ))}
+        
+      </Ocean>
+    </Scene>
   );
 }
